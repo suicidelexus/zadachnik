@@ -1,0 +1,870 @@
+{% extends "base.html" %}
+
+{% block title %}Priority Score: Идеи - Task Tracker{% endblock %}
+
+{% block content %}
+<div class="w-full">
+<div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+    <h1 class="text-2xl font-semibold text-base-content">Priority Score</h1>
+    <div class="flex gap-2 items-center flex-wrap">
+        <button class="btn btn-primary btn-sm" onclick="openRiceIdeaModal()">
+            <span class="material-icons-round" style="font-size: 16px;">add</span>
+            <span class="ml-1">Новая идея</span>
+        </button>
+    </div>
+</div>
+
+<div class="rice-info">
+    <div class="rice-header-row">
+        <div class="scoring-ranges">
+            <h4 class="text-sm font-semibold mb-3">📊 Диапазоны скоринга</h4>
+            <div class="range-items">
+                <div class="range-item range-high">
+                    <span class="range-score">35–50</span>
+                    <span class="material-icons-round range-icon">local_fire_department</span>
+                    <span class="range-text">Берём в работу</span>
+                </div>
+                <div class="range-item range-medium">
+                    <span class="range-score">20–34</span>
+                    <span class="material-icons-round range-icon">pending</span>
+                    <span class="range-text">Кандидат в работу</span>
+                </div>
+                <div class="range-item range-low">
+                    <span class="range-score">8–19</span>
+                    <span class="material-icons-round range-icon">schedule</span>
+                    <span class="range-text">Требуется Discovery</span>
+                </div>
+                <div class="range-item range-none">
+                    <span class="range-score">0–7</span>
+                    <span class="material-icons-round range-icon">remove_circle_outline</span>
+                    <span class="range-text">Не берём в работу</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="rice-table-container">
+    <table class="rice-table">
+        <thead>
+            <tr>
+                <th>Идея</th>
+                <th>Value</th>
+                <th>Reach</th>
+                <th>Budget</th>
+                <th>Confidence</th>
+                <th class="score-col">Priority Score</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="riceIdeasBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state" style="display: none;">
+        <span class="material-icons-round">lightbulb</span>
+        <p>Нет Priority Score-идей</p>
+        <p class="empty-hint">Создайте новую идею для оценки</p>
+    </div>
+</div>
+
+</div><!-- Закрываем max-w wrapper -->
+{% endblock %}
+
+{% block modals %}
+<!-- Modal для создания/редактирования Priority Score-идеи -->
+<dialog class="modal" id="riceIdeaModal">
+    <div class="modal-content modal-wider glass-modal">
+        <div class="modal-header">
+            <h2 id="riceIdeaModalTitle">Новая Priority Score-идея</h2>
+            <button class="close-btn" onclick="closeRiceIdeaModal()">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+        <form id="riceIdeaForm">
+            <input type="hidden" id="riceIdeaId">
+
+            <div class="form-group">
+                <label for="riceIdeaTitle">Название *</label>
+                <input type="text" id="riceIdeaTitle" name="title" required placeholder="Введите название идеи">
+            </div>
+
+            <div class="form-group">
+                <label for="riceIdeaDescription">Описание</label>
+                <textarea id="riceIdeaDescription" name="description" rows="3" placeholder="Опишите идею..."></textarea>
+            </div>
+
+            <div class="form-row rice-row-4">
+                <div class="form-group">
+                    <label for="riceIdeaValue">Value *</label>
+                    <select id="riceIdeaValue" name="value" required>
+                        <option value="">—</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="riceIdeaReach">Reach *</label>
+                    <select id="riceIdeaReach" name="reach" required>
+                        <option value="">—</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="riceIdeaBudget">Budget Impact *</label>
+                    <select id="riceIdeaBudget" name="budget_impact" required>
+                        <option value="">—</option>
+                        <option value="1.0" selected>1.0</option>
+                        <option value="1.2">1.2</option>
+                        <option value="1.5">1.5</option>
+                        <option value="2.0">2.0</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="riceIdeaConfidence">Confidence, % *</label>
+                    <input type="number" id="riceIdeaConfidence" name="confidence" min="0" max="100" required placeholder="0-100">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeRiceIdeaModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-icons-round">save</span>
+                    Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<!-- Modal документации Priority Score -->
+<dialog class="modal" id="helpModal">
+    <div class="modal-content modal-documentation glass-modal">
+        <div class="modal-header">
+            <h2>📚 Документация Priority Score</h2>
+            <button class="close-btn" onclick="closeHelpModal()">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+        <div class="documentation-container">
+            <!-- Боковое меню -->
+            <div class="doc-sidebar">
+                <div class="doc-menu-item active" onclick="switchDocSection('metrics')">
+                    <span class="material-icons-round">analytics</span>
+                    <span>Описание показателей</span>
+                </div>
+                <div class="doc-menu-item" onclick="switchDocSection('decision')">
+                    <span class="material-icons-round">psychology</span>
+                    <span>Как принять решение</span>
+                </div>
+            </div>
+
+            <!-- Контент -->
+            <div class="doc-content">
+                <!-- Раздел 1: Описание показателей -->
+                <div id="doc-metrics" class="doc-section active">
+                    <h3>📊 Описание показателей</h3>
+
+                    <!-- Формула -->
+                    <div class="help-formula-card">
+                        <h4>📐 Формула расчёта Priority Score</h4>
+                        <p class="formula-text">Score = (Value × Reach × Budget Impact) × Confidence</p>
+                        <p class="formula-desc">Где Confidence выражается в процентах (0-100), а остальные показатели - в числовых значениях.</p>
+                    </div>
+
+                    <!-- Метрики в ряд -->
+                    <div class="help-metrics-row">
+                        <div class="help-metric-card">
+                            <h4>Value (1-5)</h4>
+                            <div class="metric-items">
+                                <div class="metric-item">1 — «Удобно»</div>
+                                <div class="metric-item">3 — «Снимает регулярную боль»</div>
+                                <div class="metric-item">5 — «Меняет поведение пользователей»</div>
+                            </div>
+                        </div>
+                        <div class="help-metric-card">
+                            <h4>Reach (1-5)</h4>
+                            <div class="metric-items">
+                                <div class="metric-item">1 — единичные кейсы</div>
+                                <div class="metric-item">3 — значимый сегмент</div>
+                                <div class="metric-item">5 — большинство пользователей</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-metrics-row">
+                        <div class="help-metric-card">
+                            <h4>Budget Impact</h4>
+                            <div class="metric-items">
+                                <div class="metric-item">1.0 — Без заметного импакта</div>
+                                <div class="metric-item">1.2 — Небольшой прирост</div>
+                                <div class="metric-item">1.5 — Значимый прирост</div>
+                                <div class="metric-item">2.0 — Высокий экономический эффект</div>
+                            </div>
+                        </div>
+                        <div class="help-metric-card">
+                            <h4>Confidence (0-100%)</h4>
+                            <div class="metric-items">
+                                <div class="metric-item">100% — есть готовое исследование</div>
+                                <div class="metric-item">80% — есть запросы от большинства ЦА</div>
+                                <div class="metric-item">60% — запросы без данных и обратная связь</div>
+                                <div class="metric-item">40% — гипотеза и сигналы</div>
+                                <div class="metric-item">20% — интуиция</div>
+                                <div class="metric-item">0% — нет оснований</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Интерпретация Score -->
+                    <div class="help-interpretation">
+                        <h3 style="margin-top: 32px; margin-bottom: 16px;">Операционная интерпретация Score</h3>
+                        <table class="help-table">
+                            <thead>
+                                <tr>
+                                    <th>Score</th>
+                                    <th>Решение по фиче</th>
+                                    <th>Что это означает на практике</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="score-high-row">
+                                    <td><strong>35–50</strong></td>
+                                    <td><strong>Берём в работу</strong></td>
+                                    <td>Фича готова к передаче в продукт / планирование delivery. Ценность, охват и экономический эффект подтверждены.</td>
+                                </tr>
+                                <tr class="score-medium-row">
+                                    <td><strong>20–34</strong></td>
+                                    <td><strong>Кандидат в работу</strong></td>
+                                    <td>Фича приоритетная, но требует проверки ограничений: effort, зависимости, тайминг. Идёт в верх бэклога.</td>
+                                </tr>
+                                <tr class="score-low-row">
+                                    <td><strong>8–19</strong></td>
+                                    <td><strong>Требуется уточнение (Discovery)</strong></td>
+                                    <td>Потенциал есть, но недостаточно уверенности или масштаба. Нужны ресерч, данные, прототип или spike.</td>
+                                </tr>
+                                <tr class="score-none-row">
+                                    <td><strong>0–7</strong></td>
+                                    <td><strong>Не берём в работу</strong></td>
+                                    <td>Идея сохраняется в Icebox. Возвращаемся только при изменении вводных (данные, контекст, стратегия).</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Раздел 2: Как принять решение -->
+                <div id="doc-decision" class="doc-section">
+                    <h3>🧠 Как принять решение</h3>
+                    <p>Этот раздел помогает осознанно принимать решения о разработке и приоритизации задач.</p>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">
+                            <span class="doc-step-number">1</span>
+                            <span>Определить цель (ответить на вопрос «Зачем?»)</span>
+                        </div>
+                        <div class="doc-step-content">
+                            <p>Перед тем как принимать решение, необходимо чётко понять:</p>
+                            <ul>
+                                <li>зачем мы делаем эту фичу;</li>
+                                <li>какую проблему она решает;</li>
+                                <li>для кого она создаётся (пользователь, бизнес, внутренняя команда);</li>
+                                <li>какую ценность она приносит.</li>
+                            </ul>
+                            <p><strong>Если нет понятного ответа на вопрос «зачем», решение не принимается.</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">
+                            <span class="doc-step-number">2</span>
+                            <span>Сравнить с существующим решением</span>
+                        </div>
+                        <div class="doc-step-content">
+                            <p>Далее нужно проверить, есть ли уже решение этой задачи:</p>
+                            <ul>
+                                <li>существует ли похожая фича или процесс;</li>
+                                <li>чем новое решение отличается от текущего;</li>
+                                <li>улучшает ли оно метрики, пользовательский опыт или скорость работы;</li>
+                                <li>можно ли доработать существующее решение вместо создания нового.</li>
+                            </ul>
+                            <p><strong>Цель шага</strong> — избежать дублирования и лишней сложности.</p>
+                        </div>
+                    </div>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">
+                            <span class="doc-step-number">3</span>
+                            <span>Оценить влияние на бюджет (если возможно)</span>
+                        </div>
+                        <div class="doc-step-content">
+                            <p>Если есть возможность оценить финансовые последствия, нужно:</p>
+                            <ul>
+                                <li>определить стоимость разработки и поддержки;</li>
+                                <li>оценить возможную экономию или рост дохода;</li>
+                                <li>понять, укладывается ли решение в текущий бюджет.</li>
+                            </ul>
+                            <p>Этот шаг помогает принять взвешенное бизнес-решение.</p>
+                        </div>
+                    </div>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">
+                            <span class="doc-step-number">4</span>
+                            <span>Оценить влияние на время (если бюджет посчитать нельзя)</span>
+                        </div>
+                        <div class="doc-step-content">
+                            <p>Если финансовую оценку сделать невозможно, необходимо:</p>
+                            <ul>
+                                <li>оценить затраты по времени (разработка, тестирование, внедрение);</li>
+                                <li>понять, какие задачи будут отложены или вытеснены;</li>
+                                <li>определить срочность и влияние на roadmap.</li>
+                            </ul>
+                            <p>Время в этом случае используется как основной ограничивающий ресурс.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<!-- Modal для переноса в Канбан -->
+<dialog class="modal" id="moveToKanbanModal">
+    <div class="modal-content modal-large glass-modal">
+        <div class="modal-header">
+            <h2>Перенести в Канбан</h2>
+            <button class="close-btn" onclick="closeMoveToKanbanModal()">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+        <form id="moveToKanbanForm">
+            <input type="hidden" id="moveIdeaId">
+
+            <div class="form-group">
+                <label for="moveTitle">Название *</label>
+                <input type="text" id="moveTitle" name="title" required>
+            </div>
+
+            <div class="form-group">
+                <label for="moveIdeichnayaLink">Ссылка на Идеичную</label>
+                <input type="url" id="moveIdeichnayaLink" name="ideichnaya_link" placeholder="https://...">
+            </div>
+
+            <div class="form-group">
+                <label for="moveDescription">Описание</label>
+                <textarea id="moveDescription" name="description" rows="3"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="moveAssignee">Постановщик</label>
+                    <input type="text" id="moveAssignee" name="assignee" placeholder="Имя">
+                </div>
+                <div class="form-group">
+                    <label for="moveExecutor">Исполнитель</label>
+                    <input type="text" id="moveExecutor" name="executor" placeholder="Имя">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="movePriority">Приоритет</label>
+                    <select id="movePriority" name="priority">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                        <option value="Highest">Highest</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="moveStatus">Статус</label>
+                    <select id="moveStatus" name="status">
+                        <option value="New">New</option>
+                        <option value="Collecting">Collecting</option>
+                        <option value="Ready for Dev">Ready for Dev</option>
+                        <option value="In Dev">In Dev</option>
+                        <option value="Ready for Release">Ready for Release</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Теги</label>
+                <div id="moveTagsContainer" class="tags-container"></div>
+            </div>
+
+            <div class="form-section">
+                <h3>
+                    <span class="material-icons-round">grid_view</span>
+                    Матрица Эйзенхауэра
+                </h3>
+                <p class="form-hint">Выберите по одному пункту из каждого блока или оставьте пустым</p>
+                <div class="eisenhower-matrix">
+                    <div class="eisenhower-block">
+                        <span class="block-title">Важность</span>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="move_eisenhower_importance" value="important">
+                                <span class="radio-custom"></span>
+                                <span>Важно</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="move_eisenhower_importance" value="not_important">
+                                <span class="radio-custom"></span>
+                                <span>Не важно</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="eisenhower-block">
+                        <span class="block-title">Срочность</span>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="move_eisenhower_urgency" value="urgent">
+                                <span class="radio-custom"></span>
+                                <span>Срочно</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="move_eisenhower_urgency" value="not_urgent">
+                                <span class="radio-custom"></span>
+                                <span>Не срочно</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div id="moveEisenhowerError" class="form-error" style="display: none;">
+                    Выберите по одному пункту из каждого блока или оставьте оба пустыми
+                </div>
+            </div>
+
+            <div class="rice-preview">
+                <h4>VRC метрики (из идеи)</h4>
+                <div class="rice-metrics-preview" id="riceMetricsPreview"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeMoveToKanbanModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-icons-round">move_to_inbox</span>
+                    Перенести в Канбан
+                </button>
+            </div>
+        </form>
+    </div>
+</dialog>
+{% endblock modals %}
+
+{% block scripts %}
+<script>
+    let ricePageTags = [];
+    let selectedMoveTags = [];
+    let currentIdea = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRiceIdeas();
+        loadRicePageTags();
+
+        document.getElementById('riceIdeaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await saveRiceIdea();
+        });
+
+        document.getElementById('moveToKanbanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await moveToKanban();
+        });
+    });
+
+    async function loadRicePageTags() {
+        try {
+            const response = await fetch('/api/tags');
+            ricePageTags = await response.json();
+        } catch (error) {
+            console.error('Error loading tags:', error);
+        }
+    }
+
+    async function loadRiceIdeas() {
+        try {
+            const response = await fetch('/api/rice-ideas');
+            let ideas = await response.json();
+
+            const tbody = document.getElementById('riceIdeasBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (ideas.length === 0) {
+                emptyState.style.display = 'flex';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            // Сортировка по score (по убыванию)
+            ideas.sort((a, b) => (b.rice_score || 0) - (a.rice_score || 0));
+
+            ideas.forEach((idea, index) => {
+                const row = document.createElement('tr');
+                const scoreClass = getScoreClass(idea.rice_score);
+
+                row.innerHTML = `
+                    <td class="task-cell">
+                        <div class="task-info">
+                            <span class="task-rank">#${index + 1}</span>
+                            <div class="idea-details">
+                                <span class="idea-title">${idea.title}</span>
+                                ${idea.description ? `<span class="idea-desc">${idea.description.substring(0, 50)}${idea.description.length > 50 ? '...' : ''}</span>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <select class="rice-select" onchange="updateRiceIdea(${idea.id}, 'value', this.value)">
+                            <option value="">—</option>
+                            ${[1,2,3,4,5].map(i =>
+                                `<option value="${i}" ${idea.value === i ? 'selected' : ''}>${i}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="rice-select" onchange="updateRiceIdea(${idea.id}, 'reach', this.value)">
+                            <option value="">—</option>
+                            ${[1,2,3,4,5].map(i =>
+                                `<option value="${i}" ${idea.reach === i ? 'selected' : ''}>${i}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="rice-select" onchange="updateRiceIdea(${idea.id}, 'budget_impact', this.value)">
+                            <option value="">—</option>
+                            <option value="1.0" ${idea.budget_impact === 1.0 || !idea.budget_impact ? 'selected' : ''}>1.0</option>
+                            <option value="1.2" ${idea.budget_impact === 1.2 ? 'selected' : ''}>1.2</option>
+                            <option value="1.5" ${idea.budget_impact === 1.5 ? 'selected' : ''}>1.5</option>
+                            <option value="2.0" ${idea.budget_impact === 2.0 ? 'selected' : ''}>2.0</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="rice-input" value="${idea.confidence ?? ''}"
+                               onchange="updateRiceIdea(${idea.id}, 'confidence', this.value)"
+                               min="0" max="100" placeholder="0-100">
+                    </td>
+                    <td class="score-col">
+                        <span class="rice-score ${scoreClass}">
+                            ${idea.rice_score !== null ? idea.rice_score.toFixed(2) : '—'}
+                        </span>
+                    </td>
+                    <td class="actions-cell">
+                        <button class="icon-btn" onclick="editRiceIdea(${idea.id})" title="Редактировать">
+                            <span class="material-icons-round">edit</span>
+                        </button>
+                        <button class="icon-btn success" onclick="openMoveToKanbanModal(${idea.id})" title="Перенести в Канбан">
+                            <span class="material-icons-round">move_to_inbox</span>
+                        </button>
+                        <button class="icon-btn danger" onclick="deleteRiceIdea(${idea.id})" title="Удалить">
+                            <span class="material-icons-round">delete</span>
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error loading Priority Score ideas:', error);
+        }
+    }
+
+    function getScoreClass(score) {
+        if (score === null || score === undefined) return '';
+        if (score >= 35) return 'score-high';      // Берём в работу
+        if (score >= 20) return 'score-medium';    // Кандидат в работу
+        if (score >= 8) return 'score-low';        // Требуется Discovery
+        return 'score-none';                        // Не берём в работу
+    }
+
+    // === Modal для Priority Score идеи ===
+
+    function openRiceIdeaModal(idea = null) {
+        const modal = document.getElementById('riceIdeaModal');
+        const title = document.getElementById('riceIdeaModalTitle');
+        const form = document.getElementById('riceIdeaForm');
+
+        if (idea) {
+            title.textContent = 'Редактировать идею';
+            document.getElementById('riceIdeaId').value = idea.id;
+            document.getElementById('riceIdeaTitle').value = idea.title || '';
+            document.getElementById('riceIdeaDescription').value = idea.description || '';
+            document.getElementById('riceIdeaValue').value = idea.value || '';
+            document.getElementById('riceIdeaReach').value = idea.reach || '';
+            document.getElementById('riceIdeaBudget').value = idea.budget_impact || '1.0';
+            document.getElementById('riceIdeaConfidence').value = idea.confidence ?? '';
+        } else {
+            title.textContent = 'Новая Priority Score-идея';
+            form.reset();
+            document.getElementById('riceIdeaId').value = '';
+        }
+
+        if (modal.tagName === 'DIALOG') {
+            modal.showModal();
+        } else {
+            modal.classList.add('active');
+        }
+    }
+
+    function closeRiceIdeaModal() {
+        const modal = document.getElementById('riceIdeaModal');
+        if (modal.tagName === 'DIALOG') {
+            modal.close();
+        } else {
+            modal.classList.remove('active');
+        }
+    }
+
+    // === Modal справки ===
+
+    function openHelpModal() {
+        const modal = document.getElementById('helpModal');
+        if (modal.tagName === 'DIALOG') {
+            modal.showModal();
+        } else {
+            modal.classList.add('active');
+        }
+        // По умолчанию показываем первый раздел
+        switchDocSection('metrics');
+    }
+
+    function closeHelpModal() {
+        const modal = document.getElementById('helpModal');
+        if (modal.tagName === 'DIALOG') {
+            modal.close();
+        } else {
+            modal.classList.remove('active');
+        }
+    }
+
+    function switchDocSection(sectionId) {
+        // Убираем активный класс со всех разделов и пунктов меню
+        document.querySelectorAll('.doc-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.querySelectorAll('.doc-menu-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Добавляем активный класс к выбранному разделу
+        const section = document.getElementById('doc-' + sectionId);
+        if (section) {
+            section.classList.add('active');
+        }
+
+        // Добавляем активный класс к соответствующему пункту меню
+        event.currentTarget.classList.add('active');
+    }
+
+    async function editRiceIdea(id) {
+        try {
+            const response = await fetch(`/api/rice-ideas/${id}`);
+            const idea = await response.json();
+            openRiceIdeaModal(idea);
+        } catch (error) {
+            console.error('Error loading idea:', error);
+        }
+    }
+
+    async function saveRiceIdea() {
+        const id = document.getElementById('riceIdeaId').value;
+        const data = {
+            title: document.getElementById('riceIdeaTitle').value,
+            description: document.getElementById('riceIdeaDescription').value,
+            value: parseInt(document.getElementById('riceIdeaValue').value) || null,
+            reach: parseInt(document.getElementById('riceIdeaReach').value) || null,
+            budget_impact: parseFloat(document.getElementById('riceIdeaBudget').value) || 1.0,
+            confidence: parseInt(document.getElementById('riceIdeaConfidence').value) ?? null
+        };
+
+        try {
+            const url = id ? `/api/rice-ideas/${id}` : '/api/rice-ideas';
+            const method = id ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeRiceIdeaModal();
+                loadRiceIdeas();
+            }
+        } catch (error) {
+            console.error('Error saving idea:', error);
+        }
+    }
+
+    async function updateRiceIdea(id, field, value) {
+        try {
+            // Для budget_impact используем parseFloat, для остальных parseInt
+            let parsedValue;
+            if (field === 'budget_impact') {
+                parsedValue = value ? parseFloat(value) : null;
+            } else {
+                parsedValue = value ? parseInt(value) : null;
+            }
+
+            const response = await fetch(`/api/rice-ideas/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: parsedValue })
+            });
+
+            if (response.ok) {
+                loadRiceIdeas();
+            }
+        } catch (error) {
+            console.error('Error updating Priority Score idea:', error);
+        }
+    }
+
+    async function deleteRiceIdea(id) {
+        if (!confirm('Удалить эту идею?')) return;
+
+        try {
+            const response = await fetch(`/api/rice-ideas/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                loadRiceIdeas();
+            }
+        } catch (error) {
+            console.error('Error deleting idea:', error);
+        }
+    }
+
+    // === Modal для переноса в Канбан ===
+
+    async function openMoveToKanbanModal(id) {
+        try {
+            const response = await fetch(`/api/rice-ideas/${id}`);
+            currentIdea = await response.json();
+
+            document.getElementById('moveIdeaId').value = currentIdea.id;
+            document.getElementById('moveTitle').value = currentIdea.title || '';
+            document.getElementById('moveDescription').value = currentIdea.description || '';
+            document.getElementById('moveIdeichnayaLink').value = '';
+            document.getElementById('moveAssignee').value = '';
+            document.getElementById('moveExecutor').value = '';
+            document.getElementById('movePriority').value = 'Medium';
+            document.getElementById('moveStatus').value = 'New';
+
+            // Сброс radio-кнопок матрицы Эйзенхауэра
+            document.querySelectorAll('input[name="move_eisenhower_importance"]').forEach(el => el.checked = false);
+            document.querySelectorAll('input[name="move_eisenhower_urgency"]').forEach(el => el.checked = false);
+            document.getElementById('moveEisenhowerError').style.display = 'none';
+
+            // Показываем VRC метрики
+            document.getElementById('riceMetricsPreview').innerHTML = `
+                <span class="metric">Value: <strong>${currentIdea.value || '—'}</strong></span>
+                <span class="metric">Reach: <strong>${currentIdea.reach || '—'}</strong></span>
+                <span class="metric">Confidence: <strong>${currentIdea.confidence !== null ? currentIdea.confidence + '%' : '—'}</strong></span>
+                <span class="metric score">Score: <strong>${currentIdea.rice_score !== null ? currentIdea.rice_score.toFixed(2) : '—'}</strong></span>
+            `;
+
+            // Загружаем теги
+            selectedMoveTags = [];
+            renderMoveTags();
+
+            document.getElementById('moveToKanbanModal').classList.add('active');
+        } catch (error) {
+            console.error('Error loading idea:', error);
+        }
+    }
+
+    function closeMoveToKanbanModal() {
+        document.getElementById('moveToKanbanModal').classList.remove('active');
+        currentIdea = null;
+    }
+
+    function renderMoveTags() {
+        const container = document.getElementById('moveTagsContainer');
+        container.innerHTML = ricePageTags.map(tag => `
+            <label class="tag-checkbox" style="--tag-color: ${tag.color}">
+                <input type="checkbox" value="${tag.id}"
+                       ${selectedMoveTags.includes(tag.id) ? 'checked' : ''}
+                       onchange="toggleMoveTag(${tag.id})">
+                <span class="tag-label">${tag.name}</span>
+            </label>
+        `).join('');
+    }
+
+    function toggleMoveTag(tagId) {
+        if (selectedMoveTags.includes(tagId)) {
+            selectedMoveTags = selectedMoveTags.filter(id => id !== tagId);
+        } else {
+            selectedMoveTags.push(tagId);
+        }
+    }
+
+    function validateMoveEisenhower() {
+        const importance = document.querySelector('input[name="move_eisenhower_importance"]:checked');
+        const urgency = document.querySelector('input[name="move_eisenhower_urgency"]:checked');
+        const errorEl = document.getElementById('moveEisenhowerError');
+
+        // Оба пустые - ОК
+        if (!importance && !urgency) {
+            errorEl.style.display = 'none';
+            return true;
+        }
+
+        // Оба заполнены - ОК
+        if (importance && urgency) {
+            errorEl.style.display = 'none';
+            return true;
+        }
+
+        // Только один заполнен - ошибка
+        errorEl.style.display = 'block';
+        return false;
+    }
+
+    async function moveToKanban() {
+        if (!validateMoveEisenhower()) {
+            return;
+        }
+
+        const id = document.getElementById('moveIdeaId').value;
+        const importance = document.querySelector('input[name="move_eisenhower_importance"]:checked');
+        const urgency = document.querySelector('input[name="move_eisenhower_urgency"]:checked');
+
+        const data = {
+            title: document.getElementById('moveTitle').value,
+            description: document.getElementById('moveDescription').value,
+            ideichnaya_link: document.getElementById('moveIdeichnayaLink').value,
+            assignee: document.getElementById('moveAssignee').value,
+            executor: document.getElementById('moveExecutor').value,
+            priority: document.getElementById('movePriority').value,
+            status: document.getElementById('moveStatus').value,
+            eisenhower_urgent: urgency ? urgency.value === 'urgent' : null,
+            eisenhower_important: importance ? importance.value === 'important' : null,
+            tag_ids: selectedMoveTags
+        };
+
+        try {
+            const response = await fetch(`/api/rice-ideas/${id}/to-kanban`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeMoveToKanbanModal();
+                loadRiceIdeas();
+                alert('Идея успешно перенесена в Канбан!');
+            }
+        } catch (error) {
+            console.error('Error moving to kanban:', error);
+        }
+    }
+</script>
+{% endblock %}

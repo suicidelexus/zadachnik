@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Канбан - Task Tracker{% endblock %}
+
+{% block content %}
+<!-- Расширенная рабочая область на всю ширину -->
+<div class="w-full">
+<!-- Header - минималистичный -->
+<div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+    <h1 class="text-2xl font-semibold text-base-content">Канбан</h1>
+
+    <div class="flex gap-2 items-center flex-wrap">
+        <!-- Переключатель режимов - минималистичный -->
+        <div class="join">
+            <button class="join-item btn btn-sm btn-active" data-view="kanban" onclick="switchView('kanban')">
+                <span class="material-icons-round" style="font-size: 16px;">view_column</span>
+                <span class="ml-1">Kanban</span>
+            </button>
+            <button class="join-item btn btn-sm" data-view="table" onclick="switchView('table')">
+                <span class="material-icons-round" style="font-size: 16px;">table_rows</span>
+                <span class="ml-1">Table</span>
+            </button>
+        </div>
+
+        <!-- Кнопки - меньше и компактнее -->
+        <button class="btn btn-ghost btn-sm" onclick="openTagsModal()">
+            <span class="material-icons-round" style="font-size: 16px;">label</span>
+            <span class="ml-1">Теги</span>
+        </button>
+
+        <div class="dropdown dropdown-end">
+            <button tabindex="0" class="btn btn-primary btn-sm">
+                <span class="material-icons-round" style="font-size: 16px;">add</span>
+                <span class="ml-1">Добавить</span>
+            </button>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-1 border border-base-300">
+                <li>
+                    <a onclick="openModal()">
+                        <span class="material-icons-round text-base">edit_note</span>
+                        <span>Новая задача</span>
+                    </a>
+                </li>
+                <li>
+                    <a onclick="openImportModal()">
+                        <span class="material-icons-round text-base">upload_file</span>
+                        <span>Импорт из файла</span>
+                    </a>
+                </li>
+                <li class="divider my-0"></li>
+                <li>
+                    <a href="/api/import/template">
+                        <span class="material-icons-round text-base">download</span>
+                        <span>Скачать шаблон</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры - DaisyUI form controls -->
+<div class="flex gap-4 mb-6 flex-wrap">
+    <div class="form-control w-full max-w-xs">
+        <label class="label">
+            <span class="label-text font-medium">Статус:</span>
+        </label>
+        <select id="filterStatus" onchange="applyFilters()" class="select select-bordered select-sm w-full">
+            <option value="">Все</option>
+            <option value="New">New</option>
+            <option value="Collecting">Collecting</option>
+            <option value="Ready for Dev">Ready for Dev</option>
+            <option value="In Dev">In Dev</option>
+            <option value="Ready for Release">Ready for Release</option>
+        </select>
+    </div>
+
+    <div class="form-control w-full max-w-xs">
+        <label class="label">
+            <span class="label-text font-medium">Тег:</span>
+        </label>
+        <select id="filterTag" onchange="applyFilters()" class="select select-bordered select-sm w-full">
+            <option value="">Все</option>
+        </select>
+    </div>
+
+    <div class="form-control w-full max-w-xs">
+        <label class="label">
+            <span class="label-text font-medium">Поиск:</span>
+        </label>
+        <input type="text" id="searchInput" placeholder="Поиск по названию..." oninput="debounceSearch()"
+               class="input input-bordered input-sm w-full" />
+    </div>
+</div>
+
+<!-- Kanban View - оптимизированное использование пространства -->
+<div id="kanban-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto pb-4">
+    <!-- Low Priority Column -->
+    <div class="flex flex-col min-w-[300px]" data-priority="Low">
+        <div class="bg-base-100 border-b-2 border-green-500 rounded-t-md p-3 flex justify-between items-center">
+            <h3 class="text-base-content font-semibold text-sm">Low</h3>
+            <div class="badge badge-ghost badge-sm" id="count-Low">0</div>
+        </div>
+        <div class="bg-base-100 border border-t-0 border-base-300 rounded-b-md p-3 min-h-[500px] space-y-3" id="tasks-Low"></div>
+    </div>
+
+    <!-- Medium Priority Column -->
+    <div class="flex flex-col min-w-[300px]" data-priority="Medium">
+        <div class="bg-base-100 border-b-2 border-yellow-500 rounded-t-md p-3 flex justify-between items-center">
+            <h3 class="text-base-content font-semibold text-sm">Medium</h3>
+            <div class="badge badge-ghost badge-sm" id="count-Medium">0</div>
+        </div>
+        <div class="bg-base-100 border border-t-0 border-base-300 rounded-b-md p-3 min-h-[500px] space-y-3" id="tasks-Medium"></div>
+    </div>
+
+    <!-- High Priority Column -->
+    <div class="flex flex-col min-w-[300px]" data-priority="High">
+        <div class="bg-base-100 border-b-2 border-red-500 rounded-t-md p-3 flex justify-between items-center">
+            <h3 class="text-base-content font-semibold text-sm">High</h3>
+            <div class="badge badge-ghost badge-sm" id="count-High">0</div>
+        </div>
+        <div class="bg-base-100 border border-t-0 border-base-300 rounded-b-md p-3 min-h-[500px] space-y-3" id="tasks-High"></div>
+    </div>
+
+    <!-- Highest Priority Column -->
+    <div class="flex flex-col min-w-[300px]" data-priority="Highest">
+        <div class="bg-base-100 border-b-2 border-purple-500 rounded-t-md p-3 flex justify-between items-center">
+            <h3 class="text-base-content font-semibold text-sm">Highest</h3>
+            <div class="badge badge-ghost badge-sm" id="count-Highest">0</div>
+        </div>
+        <div class="bg-base-100 border border-t-0 border-base-300 rounded-b-md p-3 min-h-[500px] space-y-3" id="tasks-Highest"></div>
+    </div>
+</div>
+
+<!-- Table View - DaisyUI table -->
+<div id="table-view" class="overflow-x-auto" style="display: none;">
+    <table class="table table-zebra w-full">
+        <thead>
+            <tr class="bg-base-200">
+                <th class="font-bold">Название</th>
+                <th class="font-bold">Ссылка</th>
+                <th class="font-bold">Приоритет</th>
+                <th class="font-bold">Статус</th>
+                <th class="font-bold">Постановщик</th>
+                <th class="font-bold">Исполнитель</th>
+            </tr>
+        </thead>
+        <tbody id="table-body" class="hover">
+        </tbody>
+    </table>
+</div>
+
+</div><!-- Закрываем max-w wrapper -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Текущий режим отображения и кэш задач
+    let currentView = 'kanban';
+    let cachedTasks = [];
+
+    // Инициализация канбан-доски
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTasks();
+        loadTagsFilter();
+        initSortable();
+    });
+
+    // Переключение режимов отображения
+    function switchView(view) {
+        currentView = view;
+
+        // Обновляем join кнопки
+        document.querySelectorAll('.join-item').forEach(btn => {
+            if (btn.dataset.view === view) {
+                btn.classList.add('btn-active');
+            } else {
+                btn.classList.remove('btn-active');
+            }
+        });
+
+        // Показываем/скрываем контейнеры через классы
+        const kanbanView = document.getElementById('kanban-view');
+        const tableView = document.getElementById('table-view');
+
+        if (view === 'kanban') {
+            kanbanView.classList.remove('hidden');
+            tableView.classList.remove('visible');
+        } else {
+            kanbanView.classList.add('hidden');
+            tableView.classList.add('visible');
+        }
+
+        // Перерисовываем данные без повторной загрузки
+        if (cachedTasks.length > 0) {
+            renderTasks(cachedTasks);
+        }
+    }
+
+    function initSortable() {
+        // Находим контейнеры задач по id (tasks-Low, tasks-Medium и т.д.)
+        ['Low', 'Medium', 'High', 'Highest'].forEach(priority => {
+            const container = document.getElementById(`tasks-${priority}`);
+            if (container) {
+                new Sortable(container, {
+                    group: 'tasks',
+                    animation: 150,
+                    ghostClass: 'task-ghost',
+                    onEnd: function(evt) {
+                        const taskId = evt.item.dataset.id;
+                        // Получаем приоритет из id контейнера (tasks-Low -> Low)
+                        const newPriority = evt.to.id.replace('tasks-', '');
+                        updateTaskPriority(taskId, newPriority);
+                    }
+                });
+            }
+        });
+    }
+
+    async function updateTaskPriority(taskId, priority) {
+        try {
+            await fetch(`/api/tasks/${taskId}/priority`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ priority })
+            });
+            updateCounts();
+        } catch (error) {
+            console.error('Error updating priority:', error);
+        }
+    }
+
+    async function loadTasks() {
+        const status = document.getElementById('filterStatus').value;
+        const tagId = document.getElementById('filterTag').value;
+        const search = document.getElementById('searchInput').value;
+
+        let url = '/api/tasks?';
+        if (status) url += `status=${status}&`;
+        if (tagId) url += `tag_id=${tagId}&`;
+        if (search) url += `search=${search}&`;
+
+        try {
+            const response = await fetch(url);
+            let tasks = await response.json();
+
+            // Исключаем задачи со статусом Done (они в отдельном разделе)
+            tasks = tasks.filter(task => task.status !== 'Done');
+
+            // Кэшируем задачи
+            cachedTasks = tasks;
+
+            // Рендерим задачи в текущем режиме
+            renderTasks(tasks);
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    }
+
+    function renderTasks(tasks) {
+        if (currentView === 'kanban') {
+            renderKanbanView(tasks);
+        } else {
+            renderTableView(tasks);
+        }
+    }
+
+    function renderKanbanView(tasks) {
+        // Очищаем колонки
+        ['Low', 'Medium', 'High', 'Highest'].forEach(priority => {
+            document.getElementById(`tasks-${priority}`).innerHTML = '';
+        });
+
+        // Группируем по приоритетам
+        const grouped = {};
+        tasks.forEach(task => {
+            if (!grouped[task.priority]) {
+                grouped[task.priority] = [];
+            }
+            grouped[task.priority].push(task);
+        });
+
+        // Отрисовываем все задачи без группировки по тегам
+        ['Low', 'Medium', 'High', 'Highest'].forEach(priority => {
+            const container = document.getElementById(`tasks-${priority}`);
+            const priorityTasks = grouped[priority] || [];
+
+            priorityTasks.forEach(task => {
+                container.appendChild(createTaskCard(task));
+            });
+        });
+
+        updateCounts();
+    }
+
+    function renderTableView(tasks) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        tasks.forEach(task => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-base-200 hover:shadow-md cursor-pointer transition-all duration-150';
+            // В Table режиме открываем боковую панель
+            row.onclick = () => openSideDrawer(task.id);
+
+            const statusClass = task.status.toLowerCase().replace(/ /g, '-');
+            const priorityClass = task.priority.toLowerCase();
+
+            // Определяем классы для badges
+            const statusBadgeClass = {
+                'new': 'badge-info',
+                'collecting': 'badge-warning',
+                'ready-for-dev': 'badge-primary',
+                'in-dev': 'badge-accent',
+                'ready-for-release': 'badge-success'
+            }[statusClass] || 'badge-ghost';
+
+            const priorityBadgeClass = {
+                'low': 'badge-success',
+                'medium': 'badge-warning',
+                'high': 'badge-error',
+                'highest': 'badge-secondary'
+            }[priorityClass] || 'badge-ghost';
+
+            row.innerHTML = `
+                <td class="font-medium">${task.title}</td>
+                <td>
+                    ${task.ideichnaya_link ? `<a href="${task.ideichnaya_link}" target="_blank" class="btn btn-ghost btn-xs gap-1" onclick="event.stopPropagation();">
+                        <span class="material-icons-round text-sm">open_in_new</span>
+                    </a>` : '<span class="text-base-content/40">—</span>'}
+                </td>
+                <td>
+                    <div class="badge ${priorityBadgeClass} badge-sm">${task.priority}</div>
+                </td>
+                <td>
+                    <div class="badge ${statusBadgeClass} badge-sm">${task.status}</div>
+                </td>
+                <td>${task.assignee || '<span class="text-base-content/40">—</span>'}</td>
+                <td>${task.executor || '<span class="text-base-content/40">—</span>'}</td>
+            `;
+
+            tbody.appendChild(row);
+        });
+    }
+
+    function createTaskCard(task) {
+        const card = document.createElement('div');
+        card.className = 'card bg-base-100 shadow-md hover:shadow-xl transition-all cursor-pointer border border-base-300 mb-3';
+        card.dataset.id = task.id;
+        card.onclick = () => openViewModal(task.id);
+
+        const statusClass = task.status.toLowerCase().replace(/ /g, '-');
+
+        // Определяем цвет бейджа статуса
+        const statusBadgeClass = {
+            'new': 'badge-info',
+            'collecting': 'badge-warning',
+            'ready-for-dev': 'badge-primary',
+            'in-dev': 'badge-accent',
+            'ready-for-release': 'badge-success'
+        }[statusClass] || 'badge-ghost';
+
+        card.innerHTML = `
+            <div class="card-body p-4">
+                <!-- Header с статусом и RICE score -->
+                <div class="flex justify-between items-start mb-2">
+                    <div class="badge ${statusBadgeClass} badge-sm">${task.status}</div>
+                    ${task.rice_score ? `<div class="badge badge-secondary badge-sm" title="Priority Score">
+                        <span class="material-icons-round text-xs mr-1">analytics</span>
+                        ${task.rice_score.toFixed(1)}
+                    </div>` : ''}
+                </div>
+
+                <!-- Название задачи -->
+                <h4 class="card-title text-base font-semibold mb-2">${task.title}</h4>
+
+                <!-- Описание -->
+                ${task.description ? `<p class="text-sm text-base-content/70 mb-3">${task.description.substring(0, 100)}${task.description.length > 100 ? '...' : ''}</p>` : ''}
+
+                <!-- Footer с тегами и исполнителем -->
+                <div class="flex justify-between items-center flex-wrap gap-2">
+                    <!-- Теги - увеличены для большей заметности -->
+                    <div class="flex gap-1.5 flex-wrap">
+                        ${task.tags.map(tag => `<span class="badge badge-sm font-medium" style="background-color: ${tag.color}15; border: 1.5px solid ${tag.color}; color: ${tag.color}">${tag.name}</span>`).join('')}
+                    </div>
+
+                    <!-- Исполнитель -->
+                    ${task.executor ? `<div class="flex items-center gap-1 text-xs text-base-content/60">
+                        <span class="material-icons-round text-sm">person</span>
+                        <span>${task.executor}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+        `;
+
+        return card;
+    }
+
+    function updateCounts() {
+        ['Low', 'Medium', 'High', 'Highest'].forEach(priority => {
+            // Ищем все карточки в контейнере - теперь это .card с DaisyUI
+            const count = document.querySelectorAll(`#tasks-${priority} .card`).length;
+            document.getElementById(`count-${priority}`).textContent = count;
+        });
+    }
+
+    async function loadTagsFilter() {
+        try {
+            const response = await fetch('/api/tags');
+            const tags = await response.json();
+
+            const select = document.getElementById('filterTag');
+            select.innerHTML = '<option value="">Все</option>';
+            tags.forEach(tag => {
+                select.innerHTML += `<option value="${tag.id}">${tag.name}</option>`;
+            });
+        } catch (error) {
+            console.error('Error loading tags:', error);
+        }
+    }
+
+    let searchTimeout;
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => applyFilters(), 300);
+    }
+
+    function applyFilters() {
+        loadTasks();
+    }
+</script>
+{% endblock %}

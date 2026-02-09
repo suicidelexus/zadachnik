@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Матрица Эйзенхауэра - Task Tracker{% endblock %}
+
+{% block content %}
+<div class="w-full">
+<!-- Header - минималистичный -->
+<div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+    <h1 class="text-2xl font-semibold text-base-content">Матрица Эйзенхауэра</h1>
+
+    <button class="btn btn-primary btn-sm" onclick="openModal()">
+        <span class="material-icons-round" style="font-size: 16px;">add</span>
+        <span class="ml-1">Новая задача</span>
+    </button>
+</div>
+
+<div class="alert alert-info mb-5 py-3">
+    <span class="material-icons-round text-base">info</span>
+    <span class="text-sm">Распределяйте задачи по квадрантам, перетаскивая их между секциями</span>
+</div>
+
+<div class="eisenhower-matrix">
+    <div class="matrix-header">
+        <div class="corner-cell"></div>
+        <div class="header-cell urgent-header">Срочно</div>
+        <div class="header-cell not-urgent-header">Не срочно</div>
+    </div>
+
+    <div class="matrix-row">
+        <div class="row-header important-header">Важно</div>
+
+        <!-- Квадрант 1: Срочно и Важно -->
+        <div class="quadrant quadrant-1" data-quadrant="1">
+            <div class="quadrant-header">
+                <span class="material-icons-round">priority_high</span>
+                <h3>Сделать сейчас</h3>
+            </div>
+            <div class="quadrant-tasks" id="quadrant-1"></div>
+        </div>
+
+        <!-- Квадрант 2: Не срочно, но Важно -->
+        <div class="quadrant quadrant-2" data-quadrant="2">
+            <div class="quadrant-header">
+                <span class="material-icons-round">event</span>
+                <h3>Запланировать</h3>
+            </div>
+            <div class="quadrant-tasks" id="quadrant-2"></div>
+        </div>
+    </div>
+
+    <div class="matrix-row">
+        <div class="row-header not-important-header">Не важно</div>
+
+        <!-- Квадрант 3: Срочно, но Не важно -->
+        <div class="quadrant quadrant-3" data-quadrant="3">
+            <div class="quadrant-header">
+                <span class="material-icons-round">person_add</span>
+                <h3>Делегировать</h3>
+            </div>
+            <div class="quadrant-tasks" id="quadrant-3"></div>
+        </div>
+
+        <!-- Квадрант 4: Не срочно и Не важно -->
+        <div class="quadrant quadrant-4" data-quadrant="4">
+            <div class="quadrant-header">
+                <span class="material-icons-round">delete_outline</span>
+                <h3>Удалить / Отложить</h3>
+            </div>
+            <div class="quadrant-tasks" id="quadrant-4"></div>
+        </div>
+    </div>
+</div>
+
+</div><!-- Закрываем max-w wrapper -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadEisenhowerTasks();
+        initEisenhowerDragDrop();
+    });
+
+    async function loadEisenhowerTasks() {
+        try {
+            const response = await fetch('/api/tasks');
+            const tasks = await response.json();
+
+            // Очищаем квадранты
+            [1, 2, 3, 4].forEach(q => {
+                document.getElementById(`quadrant-${q}`).innerHTML = '';
+            });
+
+            // Распределяем задачи по квадрантам
+            tasks.forEach(task => {
+                const quadrant = task.eisenhower_quadrant;
+                const container = document.getElementById(`quadrant-${quadrant}`);
+                container.appendChild(createEisenhowerCard(task));
+            });
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    }
+
+    function createEisenhowerCard(task) {
+        const card = document.createElement('div');
+        card.className = 'card bg-base-100 shadow-md hover:shadow-lg transition-shadow cursor-move border border-base-300 mb-3';
+        card.dataset.id = task.id;
+        card.onclick = (e) => {
+            if (!e.target.closest('.drag-handle')) {
+                openViewModal(task.id);
+            }
+        };
+
+        const priorityColors = {
+            'low': 'badge-success',
+            'medium': 'badge-warning',
+            'high': 'badge-error',
+            'highest': 'badge-secondary'
+        };
+
+        const statusColors = {
+            'new': 'badge-info',
+            'collecting': 'badge-warning',
+            'ready-for-dev': 'badge-primary',
+            'in-dev': 'badge-accent',
+            'ready-for-release': 'badge-success'
+        };
+
+        const statusKey = task.status.toLowerCase().replace(/ /g, '-');
+
+        card.innerHTML = `
+            <div class="card-body p-3">
+                <div class="flex items-start gap-2">
+                    <div class="drag-handle cursor-move flex-shrink-0 text-base-content/40 hover:text-base-content">
+                        <span class="material-icons-round text-base">drag_indicator</span>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-sm mb-2">${task.title}</h4>
+                        <div class="flex gap-2 flex-wrap">
+                            <div class="badge ${priorityColors[task.priority.toLowerCase()]} badge-sm">${task.priority}</div>
+                            <div class="badge ${statusColors[statusKey]} badge-sm">${task.status}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        return card;
+    }
+
+    function initEisenhowerDragDrop() {
+        [1, 2, 3, 4].forEach(q => {
+            const container = document.getElementById(`quadrant-${q}`);
+            new Sortable(container, {
+                group: 'eisenhower',
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'card-ghost',
+                onEnd: function(evt) {
+                    const taskId = evt.item.dataset.id;
+                    const newQuadrant = parseInt(evt.to.id.split('-')[1]);
+                    updateTaskQuadrant(taskId, newQuadrant);
+                }
+            });
+        });
+    }
+
+    async function updateTaskQuadrant(taskId, quadrant) {
+        // Определяем urgent и important по квадранту
+        let urgent, important;
+        switch(quadrant) {
+            case 1: urgent = true; important = true; break;
+            case 2: urgent = false; important = true; break;
+            case 3: urgent = true; important = false; break;
+            case 4: urgent = false; important = false; break;
+        }
+
+        try {
+            await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eisenhower_urgent: urgent,
+                    eisenhower_important: important
+                })
+            });
+        } catch (error) {
+            console.error('Error updating quadrant:', error);
+        }
+    }
+</script>
+{% endblock %}

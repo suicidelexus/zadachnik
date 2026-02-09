@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Priority Score: По канбану - Task Tracker{% endblock %}
+
+{% block content %}
+<div class="w-full">
+<div class="mb-5">
+    <h1 class="text-2xl font-semibold text-base-content mb-1">Priority Score: Канбан</h1>
+    <p class="text-sm text-base-content/60">Задачи из Канбана с заполненными Priority Score-метриками</p>
+</div>
+
+<div class="rice-info">
+    <div class="rice-header-row">
+        <div class="scoring-ranges">
+            <h4>📊 Диапазоны скоринга</h4>
+            <div class="range-items">
+                <div class="range-item range-high">
+                    <span class="range-score">35–50</span>
+                    <span class="material-icons-round range-icon">local_fire_department</span>
+                    <span class="range-text">Берём в работу</span>
+                </div>
+                <div class="range-item range-medium">
+                    <span class="range-score">20–34</span>
+                    <span class="material-icons-round range-icon">pending</span>
+                    <span class="range-text">Кандидат в работу</span>
+                </div>
+                <div class="range-item range-low">
+                    <span class="range-score">8–19</span>
+                    <span class="material-icons-round range-icon">schedule</span>
+                    <span class="range-text">Требуется Discovery</span>
+                </div>
+                <div class="range-item range-none">
+                    <span class="range-score">0–7</span>
+                    <span class="material-icons-round range-icon">remove_circle_outline</span>
+                    <span class="range-text">Не берём в работу</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="filters-bar">
+    <div class="filter-group">
+        <label>Приоритет:</label>
+        <select id="filterPriority" onchange="loadRiceTasks()">
+            <option value="">Все</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Highest">Highest</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Статус:</label>
+        <select id="filterStatus" onchange="loadRiceTasks()">
+            <option value="">Все</option>
+            <option value="New">New</option>
+            <option value="Collecting">Collecting</option>
+            <option value="Ready for Dev">Ready for Dev</option>
+            <option value="In Dev">In Dev</option>
+            <option value="Ready for Release">Ready for Release</option>
+        </select>
+    </div>
+</div>
+
+<div class="rice-table-container">
+    <table class="rice-table">
+        <thead>
+            <tr>
+                <th>Задача</th>
+                <th>Приоритет</th>
+                <th>Статус</th>
+                <th>Value</th>
+                <th>Reach</th>
+                <th>Budget</th>
+                <th>Confidence</th>
+                <th class="score-col">Priority Score</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="riceTableBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state" style="display: none;">
+        <span class="material-icons-round">analytics</span>
+        <p>Нет задач с заполненными Priority Score-метриками</p>
+        <p class="empty-hint">Создайте задачу в Канбане и заполните Priority Score-метрики</p>
+    </div>
+</div>
+
+</div><!-- Закрываем max-w wrapper -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRiceTasks();
+    });
+
+    async function loadRiceTasks() {
+        const priority = document.getElementById('filterPriority').value;
+        const status = document.getElementById('filterStatus').value;
+
+        let url = '/api/tasks-with-rice?';
+        if (priority) url += `priority=${priority}&`;
+        if (status) url += `status=${status}&`;
+
+        try {
+            const response = await fetch(url);
+            let tasks = await response.json();
+
+            const tbody = document.getElementById('riceTableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (tasks.length === 0) {
+                emptyState.style.display = 'flex';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            const priorityColors = {
+                'low': 'badge-success',
+                'medium': 'badge-warning',
+                'high': 'badge-error',
+                'highest': 'badge-secondary'
+            };
+
+            const statusColors = {
+                'new': 'badge-info',
+                'collecting': 'badge-warning',
+                'ready-for-dev': 'badge-primary',
+                'in-dev': 'badge-accent',
+                'ready-for-release': 'badge-success'
+            };
+
+            tasks.forEach((task, index) => {
+                const row = document.createElement('tr');
+                const scoreClass = getScoreClass(task.rice_score);
+                const statusKey = task.status.toLowerCase().replace(/ /g, '-');
+
+                row.className = 'hover:bg-base-200 transition-colors';
+                row.innerHTML = `
+                    <td class="font-medium">
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-ghost badge-sm">#${index + 1}</span>
+                            <a href="#" onclick="openViewModal(${task.id}); return false;" class="link link-hover text-primary">${task.title}</a>
+                        </div>
+                    </td>
+                    <td><span class="badge ${priorityColors[task.priority.toLowerCase()]} badge-sm">${task.priority}</span></td>
+                    <td><span class="badge ${statusColors[statusKey]} badge-sm">${task.status}</span></td>
+                    <td>
+                        <select class="select select-bordered select-xs w-20" onchange="updateRice(${task.id}, 'rice_value', this.value)">
+                            <option value="">—</option>
+                            ${[1,2,3,4,5].map(i =>
+                                `<option value="${i}" ${task.rice_value === i ? 'selected' : ''}>${i}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="select select-bordered select-xs w-20" onchange="updateRice(${task.id}, 'rice_reach', this.value)">
+                            <option value="">—</option>
+                            ${[1,2,3,4,5].map(i =>
+                                `<option value="${i}" ${task.rice_reach === i ? 'selected' : ''}>${i}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="select select-bordered select-xs w-20" onchange="updateRice(${task.id}, 'budget_impact', this.value)">
+                            <option value="">—</option>
+                            <option value="1.0" ${task.budget_impact === 1.0 || !task.budget_impact ? 'selected' : ''}>1.0</option>
+                            <option value="1.2" ${task.budget_impact === 1.2 ? 'selected' : ''}>1.2</option>
+                            <option value="1.5" ${task.budget_impact === 1.5 ? 'selected' : ''}>1.5</option>
+                            <option value="2.0" ${task.budget_impact === 2.0 ? 'selected' : ''}>2.0</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="input input-bordered input-xs w-20" value="${task.rice_confidence ?? ''}"
+                               onchange="updateRice(${task.id}, 'rice_confidence', this.value)"
+                               min="0" max="100" placeholder="0-100">
+                    </td>
+                    <td>
+                        <div class="badge ${scoreClass} badge-lg font-bold">
+                            ${task.rice_score !== null ? task.rice_score.toFixed(2) : '—'}
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm btn-circle" onclick="openViewModal(${task.id})" title="Открыть">
+                            <span class="material-icons-round text-base">open_in_new</span>
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    }
+
+    function getScoreClass(score) {
+        if (score === null || score === undefined) return 'badge-ghost';
+        if (score >= 35) return 'badge-success';      // Берём в работу (зелёный)
+        if (score >= 20) return 'badge-warning';      // Кандидат в работу (жёлтый)
+        if (score >= 8) return 'badge-info';          // Требуется Discovery (голубой)
+        return 'badge-error badge-outline';           // Не берём в работу (красный outline)
+    }
+
+    async function updateRice(taskId, field, value) {
+        try {
+            // Для budget_impact используем parseFloat, для остальных parseInt
+            const parsedValue = field === 'budget_impact'
+                ? (value ? parseFloat(value) : null)
+                : (value ? parseInt(value) : null);
+
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: parsedValue })
+            });
+
+            if (response.ok) {
+                loadRiceTasks();
+            }
+        } catch (error) {
+            console.error('Error updating Priority Score:', error);
+        }
+    }
+</script>
+{% endblock %}

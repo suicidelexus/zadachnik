@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - Task Tracker{% endblock %}
+
+{% block content %}
+<div class="w-full">
+<!-- Header - минималистичный -->
+<div class="flex justify-between items-center mb-5 flex-wrap gap-3">
+    <h1 class="text-2xl font-semibold text-base-content">Аналитика</h1>
+
+    <div class="flex gap-2 items-center flex-wrap">
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+            <span class="material-icons-round" style="font-size: 16px;">download</span>
+            <span class="ml-1">CSV</span>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
+            <span class="material-icons-round" style="font-size: 16px;">download</span>
+            <span class="ml-1">Excel</span>
+        </button>
+    </div>
+</div>
+
+<!-- Фильтры - компактные -->
+<div class="flex gap-3 mb-5 flex-wrap">
+    <div class="form-control w-full max-w-xs">
+        <label class="label py-1">
+            <span class="label-text text-sm">Приоритет</span>
+        </label>
+        <select id="filterPriority" onchange="loadDashboard()" class="select select-bordered select-sm w-full">
+            <option value="">Все</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Highest">Highest</option>
+        </select>
+    </div>
+
+    <div class="form-control w-full max-w-xs">
+        <label class="label">
+            <span class="label-text font-medium">Статус:</span>
+        </label>
+        <select id="filterStatus" onchange="loadDashboard()" class="select select-bordered select-sm w-full">
+            <option value="">Все</option>
+            <option value="New">New</option>
+            <option value="Collecting">Collecting</option>
+            <option value="Ready for Dev">Ready for Dev</option>
+            <option value="In Dev">In Dev</option>
+            <option value="Ready for Release">Ready for Release</option>
+            <option value="Done">Done</option>
+        </select>
+    </div>
+
+    <div class="form-control w-full max-w-xs">
+        <label class="label">
+            <span class="label-text font-medium">Тег:</span>
+        </label>
+        <select id="filterTag" onchange="loadDashboard()" class="select select-bordered select-sm w-full">
+            <option value="">Все</option>
+        </select>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Общая статистика -->
+    <div class="stat-card total-card">
+        <span class="material-icons-round">assignment</span>
+        <div class="stat-info">
+            <span class="stat-value" id="totalTasks">0</span>
+            <span class="stat-label">Всего задач</span>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="chart-card">
+        <h3>По приоритетам</h3>
+        <canvas id="priorityChart"></canvas>
+    </div>
+
+    <div class="chart-card wide">
+        <h3>По статусам</h3>
+        <canvas id="statusChart"></canvas>
+    </div>
+
+    <div class="chart-card wide">
+        <h3>Матрица Эйзенхауэра</h3>
+        <canvas id="eisenhowerChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+        <h3>По тегам</h3>
+        <canvas id="tagsChart"></canvas>
+    </div>
+
+    <!-- Топ задач по Priority Score -->
+    <div class="list-card">
+        <h3>Топ-5 по Priority Score</h3>
+        <div id="topRiceTasks" class="top-list"></div>
+    </div>
+</div>
+
+</div><!-- Закрываем max-w wrapper -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let priorityChart, statusChart, eisenhowerChart, tagsChart;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTagsFilter();
+        loadDashboard();
+    });
+
+    async function loadTagsFilter() {
+        try {
+            const response = await fetch('/api/tags');
+            const tags = await response.json();
+
+            const select = document.getElementById('filterTag');
+            select.innerHTML = '<option value="">Все</option>';
+            tags.forEach(tag => {
+                select.innerHTML += `<option value="${tag.id}">${tag.name}</option>`;
+            });
+        } catch (error) {
+            console.error('Error loading tags:', error);
+        }
+    }
+
+    async function loadDashboard() {
+        const priority = document.getElementById('filterPriority').value;
+        const status = document.getElementById('filterStatus').value;
+        const tagId = document.getElementById('filterTag').value;
+
+        let url = '/api/dashboard/stats?';
+        if (priority) url += `priority=${priority}&`;
+        if (status) url += `status=${status}&`;
+        if (tagId) url += `tag_id=${tagId}&`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            // Обновляем общую статистику
+            document.getElementById('totalTasks').textContent = data.total_tasks;
+
+            // Обновляем графики
+            updatePriorityChart(data.priority_stats);
+            updateStatusChart(data.status_stats);
+            updateEisenhowerChart(data.eisenhower_stats);
+            updateTagsChart(data.tags_stats);
+
+            // Обновляем топ Priority Score
+            updateTopRice(data.top_rice_tasks);
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+        }
+    }
+
+    function updatePriorityChart(stats) {
+        const ctx = document.getElementById('priorityChart').getContext('2d');
+
+        if (priorityChart) priorityChart.destroy();
+
+        priorityChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Highest'],
+                datasets: [{
+                    data: [stats.Low, stats.Medium, stats.High, stats.Highest],
+                    backgroundColor: ['#4caf50', '#ff9800', '#f44336', '#9c27b0']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function updateStatusChart(stats) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+
+        if (statusChart) statusChart.destroy();
+
+        statusChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['New', 'Collecting', 'Ready for Dev', 'In Dev', 'Ready for Release', 'Done'],
+                datasets: [{
+                    label: 'Задач',
+                    data: [
+                        stats.New, stats.Collecting, stats['Ready for Dev'],
+                        stats['In Dev'], stats['Ready for Release'], stats.Done
+                    ],
+                    backgroundColor: ['#9e9e9e', '#2196f3', '#ff9800', '#9c27b0', '#00bcd4', '#4caf50']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function updateEisenhowerChart(stats) {
+        const ctx = document.getElementById('eisenhowerChart').getContext('2d');
+
+        if (eisenhowerChart) eisenhowerChart.destroy();
+
+        eisenhowerChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Сделать сейчас', 'Запланировать', 'Делегировать', 'Удалить'],
+                datasets: [{
+                    data: [
+                        stats.quadrant_1, stats.quadrant_2,
+                        stats.quadrant_3, stats.quadrant_4
+                    ],
+                    backgroundColor: ['#f44336', '#2196f3', '#ff9800', '#9e9e9e']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function updateTagsChart(stats) {
+        const ctx = document.getElementById('tagsChart').getContext('2d');
+
+        if (tagsChart) tagsChart.destroy();
+
+        const labels = Object.keys(stats);
+        const data = labels.map(l => stats[l].count);
+        const colors = labels.map(l => stats[l].color);
+
+        tagsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Задач',
+                    data: data,
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function updateTopRice(tasks) {
+        const container = document.getElementById('topRiceTasks');
+
+        if (tasks.length === 0) {
+            container.innerHTML = '<p class="empty-message">Нет задач с Priority Score</p>';
+            return;
+        }
+
+        container.innerHTML = tasks.map((task, i) => `
+            <div class="top-item" onclick="openViewModal(${task.id})">
+                <span class="top-rank">${i + 1}</span>
+                <div class="top-info">
+                    <span class="top-title">${task.title}</span>
+                    <span class="top-meta">
+                        <span class="priority-badge priority-${task.priority.toLowerCase()}">${task.priority}</span>
+                    </span>
+                </div>
+                <span class="top-score">${task.rice_score.toFixed(1)}</span>
+            </div>
+        `).join('');
+    }
+
+    function exportCSV() {
+        const priority = document.getElementById('filterPriority').value;
+        const status = document.getElementById('filterStatus').value;
+        const tagId = document.getElementById('filterTag').value;
+
+        let url = '/api/export/csv?';
+        if (priority) url += `priority=${priority}&`;
+        if (status) url += `status=${status}&`;
+        if (tagId) url += `tag_id=${tagId}&`;
+
+        window.location.href = url;
+    }
+
+    function exportExcel() {
+        const priority = document.getElementById('filterPriority').value;
+        const status = document.getElementById('filterStatus').value;
+        const tagId = document.getElementById('filterTag').value;
+
+        let url = '/api/export/excel?';
+        if (priority) url += `priority=${priority}&`;
+        if (status) url += `status=${status}&`;
+        if (tagId) url += `tag_id=${tagId}&`;
+
+        window.location.href = url;
+    }
+</script>
+{% endblock %}
