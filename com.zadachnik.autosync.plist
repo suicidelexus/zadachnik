@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/hybrid/PycharmProjects/zadachnik/auto_sync.py</string>
+        <string>/Users/hybrid/PycharmProjects/zadachnik/auto_sync_daily.py</string>
     </array>
 
     <key>RunAtLoad</key>
