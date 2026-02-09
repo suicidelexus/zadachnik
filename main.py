@@ -83,4 +83,15 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5002, host='127.0.0.1')
+    import socket
+    # Найти свободный порт
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(('127.0.0.1', 8888))
+        s.close()
+        port = 8888
+    except:
+        port = 5555
+
+    print(f"\n🚀 Запуск сервера на http://127.0.0.1:{port}\n")
+    app.run(debug=True, port=port, host='127.0.0.1')
