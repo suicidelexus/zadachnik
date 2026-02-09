@@ -19,7 +19,7 @@ from pathlib import Path
 
 # Настройки
 WATCH_DIR = Path(__file__).parent.absolute()
-SYNC_INTERVAL = 60  # Интервал проверки изменений (в секундах)
+SYNC_INTERVAL = 30  # Интервал проверки изменений (в секундах) - можно уменьшить до 10
 IGNORE_PATTERNS = [
     '.git',
     '__pycache__',
